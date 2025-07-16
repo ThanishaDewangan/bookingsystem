@@ -89,30 +89,48 @@
         </div>
     </div>
 
-    <!-- Hidden iframe for receiving notifications -->
-    <iframe id="notification-receiver" style="display:none;"></iframe>
-    
-    <!-- Include notifications.js -->
     <script src="/static/js/notifications_new.js"></script>
     
     <script>
-        // Configuration
         const BEARER_TOKEN = 'secure-bearer-token-123';
         let FACILITATOR_ID = 1;
         let facilitatorName = 'Dr. Sarah Johnson';
         
-        // Initialize dashboard
+        const mockEvents = [
+            {
+                id: 1,
+                title: 'Morning Meditation Session',
+                date_time: new Date(Date.now() + 86400000).toISOString(),
+                bookings_count: 3,
+                max_participants: 15,
+                is_active: true
+            },
+            {
+                id: 2,
+                title: 'Weekend Yoga Retreat',
+                date_time: new Date(Date.now() + 604800000).toISOString(),
+                bookings_count: 5,
+                max_participants: 8,
+                is_active: true
+            },
+            {
+                id: 3,
+                title: 'Life Coaching Workshop',
+                date_time: new Date(Date.now() + 259200000).toISOString(),
+                bookings_count: 2,
+                max_participants: 12,
+                is_active: true
+            }
+        ];
+        
         function init() {
             document.getElementById('facilitator-name').textContent = facilitatorName;
-            // Notifications are handled by notifications.js
             loadEvents();
             
-            // Make sure notifications are displayed
             if (typeof updateNotificationDisplay === 'function') {
                 updateNotificationDisplay();
             }
             
-            // Listen for messages from the main app
             window.addEventListener('message', function(event) {
                 if (event.data && event.data.type === 'notification') {
                     console.log('Received notification via postMessage:', event.data.notification);
@@ -121,67 +139,29 @@
             });
         }
         
-        // Show selected tab
         function showTab(tabName) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             
-            event.target.classList.add('active');
+            document.querySelectorAll('.tab').forEach(tab => {
+                if (tab.textContent.toLowerCase().includes(tabName.toLowerCase())) {
+                    tab.classList.add('active');
+                }
+            });
             document.getElementById(tabName + '-tab').classList.add('active');
         }
         
-        // Load notifications from API
-        // Removed loadNotifications function - now handled by notifications.js
-        
-        // Load facilitator events
-        // Mock data for facilitator events
-        const mockEvents = [
-            {
-                id: 1,
-                title: 'Morning Meditation Session',
-                date_time: new Date(Date.now() + 86400000).toISOString(), // tomorrow
-                bookings_count: 3,
-                max_participants: 15,
-                is_active: true,
-                bookings: [
-                    { id: 101, user_name: 'Alice Smith', user_email: 'alice@example.com', status: 'confirmed' },
-                    { id: 102, user_name: 'Bob Johnson', user_email: 'bob@example.com', status: 'confirmed' },
-                    { id: 103, user_name: 'Carol White', user_email: 'carol@example.com', status: 'confirmed' }
-                ]
-            },
-            {
-                id: 2,
-                title: 'Weekend Yoga Retreat',
-                date_time: new Date(Date.now() + 604800000).toISOString(), // next week
-                bookings_count: 5,
-                max_participants: 8,
-                is_active: true,
-                bookings: [
-                    { id: 201, user_name: 'David Brown', user_email: 'david@example.com', status: 'confirmed' },
-                    { id: 202, user_name: 'Emma Davis', user_email: 'emma@example.com', status: 'confirmed' },
-                    { id: 203, user_name: 'Frank Miller', user_email: 'frank@example.com', status: 'confirmed' },
-                    { id: 204, user_name: 'Grace Wilson', user_email: 'grace@example.com', status: 'confirmed' },
-                    { id: 205, user_name: 'Henry Taylor', user_email: 'henry@example.com', status: 'confirmed' }
-                ]
-            },
-            {
-                id: 3,
-                title: 'Life Coaching Workshop',
-                date_time: new Date(Date.now() + 259200000).toISOString(), // 3 days later
-                bookings_count: 2,
-                max_participants: 12,
-                is_active: true,
-                bookings: [
-                    { id: 301, user_name: 'Ivy Clark', user_email: 'ivy@example.com', status: 'confirmed' },
-                    { id: 302, user_name: 'Jack Martin', user_email: 'jack@example.com', status: 'confirmed' }
-                ]
-            }
-        ];
-        
-        async function loadEvents() {
+        function loadEvents() {
             try {
-                // For demo purposes, use mock data instead of API call
-                const events = mockEvents;
+                const events = mockEvents.map(event => {
+                    const eventBookings = window.mockNotifications ? 
+                        window.mockNotifications.filter(n => n.event_title === event.title) : [];
+                    return {
+                        ...event,
+                        bookings_count: eventBookings.length,
+                        available_spots: event.max_participants - eventBookings.length
+                    };
+                });
                 
                 document.getElementById('events-loading').style.display = 'none';
                 const eventsContainer = document.getElementById('events-container');
@@ -200,7 +180,7 @@
                         <div>Status: ${event.is_active ? 'Active' : 'Cancelled'}</div>
                         <div style="margin-top: 1rem;">
                             <button class="btn btn-sm" onclick="viewBookings(${event.id})">
-                                View Bookings
+                                View Bookings (${event.bookings_count})
                             </button>
                             ${event.is_active ? 
                                 `<button class="btn btn-sm" style="margin-left: 0.5rem;" onclick="cancelEvent(${event.id})">
@@ -218,105 +198,29 @@
             }
         }
         
-        // Function to view bookings for an event
-        async function viewBookings(eventId) {
+        function viewBookings(eventId) {
             const event = mockEvents.find(e => e.id === eventId);
             if (!event) {
                 alert('Event not found');
                 return;
             }
             
-            // Get real bookings from notifications
-            const realBookings = mockNotifications.filter(n => 
-                n.event_title === event.title && !n.processed
-            );
+            const realBookings = window.mockNotifications ? 
+                window.mockNotifications.filter(n => n.event_title === event.title) : [];
             
-            // Create modal for bookings
-            const modal = document.createElement('div');
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            modal.style.zIndex = '1000';
-            
-            // Create modal content
-            const content = document.createElement('div');
-            content.style.backgroundColor = 'white';
-            content.style.padding = '20px';
-            content.style.borderRadius = '8px';
-            content.style.width = '80%';
-            content.style.maxWidth = '600px';
-            content.style.maxHeight = '80%';
-            content.style.overflow = 'auto';
-            
-            // Add close button
-            const closeButton = document.createElement('button');
-            closeButton.textContent = 'Close';
-            closeButton.className = 'btn';
-            closeButton.style.float = 'right';
-            closeButton.onclick = () => document.body.removeChild(modal);
-            
-            // Add title
-            const title = document.createElement('h2');
-            title.textContent = `Real Bookings for ${event.title}`;
-            
-            // Add bookings list
-            const bookingsList = document.createElement('div');
             if (realBookings.length > 0) {
-                const table = document.createElement('table');
-                table.style.width = '100%';
-                table.style.borderCollapse = 'collapse';
-                table.style.marginTop = '20px';
-                
-                // Add table header
-                const thead = document.createElement('thead');
-                thead.innerHTML = `
-                    <tr>
-                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Name</th>
-                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Email</th>
-                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Booked On</th>
-                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Status</th>
-                    </tr>
-                `;
-                table.appendChild(thead);
-                
-                // Add table body with real booking data
-                const tbody = document.createElement('tbody');
-                tbody.innerHTML = realBookings.map(booking => `
-                    <tr>
-                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${booking.user_name}</td>
-                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${booking.user_email}</td>
-                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${new Date(booking.received_at).toLocaleDateString()}</td>
-                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">
-                            <span style="color: ${booking.processed ? 'green' : 'orange'}">
-                                ${booking.processed ? 'Processed' : 'Pending'}
-                            </span>
-                        </td>
-                    </tr>
-                `).join('');
-                table.appendChild(tbody);
-                
-                bookingsList.appendChild(table);
+                let bookingInfo = `Real Bookings for ${event.title}:\n\n`;
+                realBookings.forEach(booking => {
+                    bookingInfo += `• ${booking.user_name} (${booking.user_email})\n`;
+                    bookingInfo += `  Booked: ${new Date(booking.received_at).toLocaleDateString()}\n`;
+                    bookingInfo += `  Status: ${booking.processed ? 'Processed' : 'Pending'}\n\n`;
+                });
+                alert(bookingInfo);
             } else {
-                bookingsList.innerHTML = '<p>No real bookings found for this event yet.</p>';
+                alert(`No real bookings found for ${event.title} yet.`);
             }
-            
-            // Assemble modal
-            content.appendChild(closeButton);
-            content.appendChild(title);
-            content.appendChild(bookingsList);
-            modal.appendChild(content);
-            
-            // Add to document
-            document.body.appendChild(modal);
         }
         
-        // Function to cancel an event
         function cancelEvent(eventId) {
             if (!confirm(`Are you sure you want to cancel this event? All bookings will be cancelled.`)) return;
             
@@ -326,91 +230,11 @@
                 return;
             }
             
-            // Update event status
             event.is_active = false;
-            
-            // Update bookings status
-            if (event.bookings) {
-                event.bookings.forEach(booking => booking.status = 'cancelled');
-            }
-            
-            // Refresh events list
             loadEvents();
-            
             alert(`Event "${event.title}" has been cancelled.`);
         }
         
-
-        
-        // This function is already defined above
-        
-        // This function is already defined above
-        
-        // Function to get real bookings for an event
-        function Booking failed: Failed to fetchBookingsForEvent(eventTitle) {
-            return window.mockNotifications ? window.mockNotifications.filter(n => 
-                n.event_title === eventTitle
-            ) : [];
-        }
-        
-        // Update viewBookings to use real data
-        const originalViewBookings = viewBookings;
-        viewBookings = function(eventId) {
-            const event = mockEvents.find(e => e.id === eventId);
-            if (!event) {
-                alert('Event not found');
-                return;
-            }
-            
-            const realBookings = getRealBookingsForEvent(event.title);
-            
-            // Create simple alert with booking info
-            if (realBookings.length > 0) {
-                let bookingInfo = `Real Bookings for ${event.title}:\n\n`;
-                realBookings.forEach(booking => {
-                    bookingInfo += `• ${booking.user_name} (${booking.user_email})\n`;
-                    bookingInfo += `  Booked: ${new Date(booking.received_at).toLocaleDateString()}\n`;
-                    bookingInfo += `  Status: ${booking.processed ? 'Processed' : 'Pending'}\n\n`;
-                });
-                alert(bookingInfo);
-            } else {
-                alert(`No real bookings found for ${event.title} yet.`);
-            }
-        };
-        
-        // Function to get real bookings for an event
-        function getRealBookingsForEvent(eventTitle) {
-            return window.mockNotifications ? window.mockNotifications.filter(n => 
-                n.event_title === eventTitle
-            ) : [];
-        }
-        
-        // Update viewBookings to use real data
-        const originalViewBookings = viewBookings;
-        viewBookings = function(eventId) {
-            const event = mockEvents.find(e => e.id === eventId);
-            if (!event) {
-                alert('Event not found');
-                return;
-            }
-            
-            const realBookings = getRealBookingsForEvent(event.title);
-            
-            // Create simple alert with booking info
-            if (realBookings.length > 0) {
-                let bookingInfo = `Real Bookings for ${event.title}:\n\n`;
-                realBookings.forEach(booking => {
-                    bookingInfo += `• ${booking.user_name} (${booking.user_email})\n`;
-                    bookingInfo += `  Booked: ${new Date(booking.received_at).toLocaleDateString()}\n`;
-                    bookingInfo += `  Status: ${booking.processed ? 'Processed' : 'Pending'}\n\n`;
-                });
-                alert(bookingInfo);
-            } else {
-                alert(`No real bookings found for ${event.title} yet.`);
-            }
-        };
-        
-        // Initialize the dashboard
         init();
     </script>
 </body>
