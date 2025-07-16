@@ -1,33 +1,18 @@
 import os
 import sys
-import subprocess
-import webbrowser
-import time
 from threading import Thread
-
-def run_main_app():
-    """Run the main Flask application"""
-    main_app_path = os.path.join(os.getcwd(), 'main_app', 'app.py')
-    subprocess.run([sys.executable, main_app_path])
-
-def run_crm_app():
-    """Run the CRM Flask application"""
-    crm_app_path = os.path.join(os.getcwd(), 'crm_app', 'crm_app.py')
-    subprocess.run([sys.executable, crm_app_path])
-
-def open_browser():
-    """Open browser after a delay"""
-    time.sleep(2)  # Wait for servers to start
-    webbrowser.open('http://localhost:5000')
-    print("Opening browser to http://localhost:5000")
-    time.sleep(1)  # Wait a bit more
-    webbrowser.open('http://localhost:5001')
-    print("Opening browser to http://localhost:5001")
+from main_app.app import app as main_app
+from crm_app.crm_app import app as crm_app
 
 def initialize_database():
     """Initialize the database"""
     print("Initializing database...")
+    import subprocess
     subprocess.run([sys.executable, 'init_db.py'])
+
+def run_crm_app():
+    """Run CRM app on port 5001"""
+    crm_app.run(host='0.0.0.0', port=5001, debug=False)
 
 if __name__ == '__main__':
     print("Starting Booking System...")
@@ -35,17 +20,11 @@ if __name__ == '__main__':
     # Initialize database
     initialize_database()
     
-    # Start CRM app in a separate thread
+    # Start CRM app in background thread
     crm_thread = Thread(target=run_crm_app)
     crm_thread.daemon = True
     crm_thread.start()
-    print("CRM application started on http://localhost:5001")
     
-    # Open browser after a delay
-    browser_thread = Thread(target=open_browser)
-    browser_thread.daemon = True
-    browser_thread.start()
-    
-    # Run main app in the main thread
-    print("Main application starting on http://localhost:5000")
-    run_main_app()
+    # Run main app on Railway's PORT
+    port = int(os.environ.get('PORT', 5000))
+    main_app.run(host='0.0.0.0', port=port, debug=False)
