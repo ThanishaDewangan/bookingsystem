@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facilitator Dashboard - CRM</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; line-height: 1.6; }
+        header { background: #2c3e50; color: white; padding: 1rem 0; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .nav { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.5rem; font-weight: bold; }
+        .main-content { padding: 2rem 0; }
+        h1, h2 { margin-bottom: 1rem; color: #2c3e50; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 1.5rem; margin-bottom: 1.5rem; }
+        .notification-list { list-style: none; }
+        .notification-item { padding: 1rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .notification-item:last-child { border-bottom: none; }
+        .notification-details { flex: 1; }
+        .notification-actions { margin-left: 1rem; }
+        .badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem; color: white; }
+        .badge-pending { background: #f39c12; }
+        .badge-processed { background: #27ae60; }
+        .badge-danger { background: #e74c3c; }
+        .btn { display: inline-block; padding: 0.5rem 1rem; background: #3498db; color: white; text-decoration: none; border-radius: 4px; border: none; cursor: pointer; }
+        .btn:hover { background: #2980b9; }
+        .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.8rem; }
+        .tabs { display: flex; margin-bottom: 1.5rem; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .tab { flex: 1; padding: 1rem; text-align: center; cursor: pointer; background: #ecf0f1; border: none; }
+        .tab.active { background: #3498db; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+        .stat-value { font-size: 2rem; font-weight: bold; color: #3498db; margin-bottom: 0.5rem; }
+        .stat-label { color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav class="nav">
+                <div class="logo">CRM Dashboard</div>
+                <div>
+                    <span id="facilitator-name">Facilitator</span>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container main-content">
+        <h1>Facilitator Dashboard</h1>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="total-notifications">0</div>
+                <div class="stat-label">Total Notifications</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="pending-notifications">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="processed-notifications">0</div>
+                <div class="stat-label">Processed</div>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('notifications')">Notifications</button>
+            <button class="tab" onclick="showTab('events')">My Events</button>
+        </div>
+        
+        <div id="notifications-tab" class="tab-content active">
+            <div class="card">
+                <h2>Recent Booking Notifications</h2>
+                <div id="notifications-loading">Loading notifications...</div>
+                <ul id="notification-list" class="notification-list" style="display: none;"></ul>
+            </div>
+        </div>
+        
+        <div id="events-tab" class="tab-content">
+            <div class="card">
+                <h2>My Events</h2>
+                <div id="events-loading">Loading events...</div>
+                <div id="events-container" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden iframe for receiving notifications -->
+    <iframe id="notification-receiver" style="display:none;"></iframe>
+    
+    <!-- Include notifications.js -->
+    <script src="/static/js/notifications_new.js"></script>
+    
+    <script>
+        // Configuration
+        const BEARER_TOKEN = 'secure-bearer-token-123';
+        let FACILITATOR_ID = 1;
+        let facilitatorName = 'Dr. Sarah Johnson';
+        
+        // Initialize dashboard
+        function init() {
+            document.getElementById('facilitator-name').textContent = facilitatorName;
+            // Notifications are handled by notifications.js
+            loadEvents();
+            
+            // Make sure notifications are displayed
+            if (typeof updateNotificationDisplay === 'function') {
+                updateNotificationDisplay();
+            }
+            
+            // Listen for messages from the main app
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'notification') {
+                    console.log('Received notification via postMessage:', event.data.notification);
+                    window.receiveNotification(event.data.notification);
+                }
+            });
+        }
+        
+        // Show selected tab
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+        
+        // Load notifications from API
+        // Removed loadNotifications function - now handled by notifications.js
+        
+        // Load facilitator events
+        // Mock data for facilitator events
+        const mockEvents = [
+            {
+                id: 1,
+                title: 'Morning Meditation Session',
+                date_time: new Date(Date.now() + 86400000).toISOString(), // tomorrow
+                bookings_count: 3,
+                max_participants: 15,
+                is_active: true,
+                bookings: [
+                    { id: 101, user_name: 'Alice Smith', user_email: 'alice@example.com', status: 'confirmed' },
+                    { id: 102, user_name: 'Bob Johnson', user_email: 'bob@example.com', status: 'confirmed' },
+                    { id: 103, user_name: 'Carol White', user_email: 'carol@example.com', status: 'confirmed' }
+                ]
+            },
+            {
+                id: 2,
+                title: 'Weekend Yoga Retreat',
+                date_time: new Date(Date.now() + 604800000).toISOString(), // next week
+                bookings_count: 5,
+                max_participants: 8,
+                is_active: true,
+                bookings: [
+                    { id: 201, user_name: 'David Brown', user_email: 'david@example.com', status: 'confirmed' },
+                    { id: 202, user_name: 'Emma Davis', user_email: 'emma@example.com', status: 'confirmed' },
+                    { id: 203, user_name: 'Frank Miller', user_email: 'frank@example.com', status: 'confirmed' },
+                    { id: 204, user_name: 'Grace Wilson', user_email: 'grace@example.com', status: 'confirmed' },
+                    { id: 205, user_name: 'Henry Taylor', user_email: 'henry@example.com', status: 'confirmed' }
+                ]
+            },
+            {
+                id: 3,
+                title: 'Life Coaching Workshop',
+                date_time: new Date(Date.now() + 259200000).toISOString(), // 3 days later
+                bookings_count: 2,
+                max_participants: 12,
+                is_active: true,
+                bookings: [
+                    { id: 301, user_name: 'Ivy Clark', user_email: 'ivy@example.com', status: 'confirmed' },
+                    { id: 302, user_name: 'Jack Martin', user_email: 'jack@example.com', status: 'confirmed' }
+                ]
+            }
+        ];
+        
+        async function loadEvents() {
+            try {
+                // For demo purposes, use mock data instead of API call
+                const events = mockEvents;
+                
+                document.getElementById('events-loading').style.display = 'none';
+                const eventsContainer = document.getElementById('events-container');
+                eventsContainer.style.display = 'block';
+                
+                if (events.length === 0) {
+                    eventsContainer.innerHTML = '<p>No events found.</p>';
+                    return;
+                }
+                
+                eventsContainer.innerHTML = events.map(event => `
+                    <div class="card">
+                        <h3>${event.title}</h3>
+                        <div>Date: ${new Date(event.date_time).toLocaleString()}</div>
+                        <div>Bookings: ${event.bookings_count}/${event.max_participants}</div>
+                        <div>Status: ${event.is_active ? 'Active' : 'Cancelled'}</div>
+                        <div style="margin-top: 1rem;">
+                            <button class="btn btn-sm" onclick="viewBookings(${event.id})">
+                                View Bookings
+                            </button>
+                            ${event.is_active ? 
+                                `<button class="btn btn-sm" style="margin-left: 0.5rem;" onclick="cancelEvent(${event.id})">
+                                    Cancel Event
+                                </button>` : 
+                                ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading events:', error);
+                document.getElementById('events-loading').innerHTML = 
+                    'Failed to load events: ' + error.message;
+            }
+        }
+        
+        // Function to view bookings for an event
+        async function viewBookings(eventId) {
+            const event = mockEvents.find(e => e.id === eventId);
+            if (!event) {
+                alert('Event not found');
+                return;
+            }
+            
+            // Get real bookings from notifications
+            const realBookings = mockNotifications.filter(n => 
+                n.event_title === event.title && !n.processed
+            );
+            
+            // Create modal for bookings
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'center';
+            modal.style.zIndex = '1000';
+            
+            // Create modal content
+            const content = document.createElement('div');
+            content.style.backgroundColor = 'white';
+            content.style.padding = '20px';
+            content.style.borderRadius = '8px';
+            content.style.width = '80%';
+            content.style.maxWidth = '600px';
+            content.style.maxHeight = '80%';
+            content.style.overflow = 'auto';
+            
+            // Add close button
+            const closeButton = document.createElement('button');
+            closeButton.textContent = 'Close';
+            closeButton.className = 'btn';
+            closeButton.style.float = 'right';
+            closeButton.onclick = () => document.body.removeChild(modal);
+            
+            // Add title
+            const title = document.createElement('h2');
+            title.textContent = `Real Bookings for ${event.title}`;
+            
+            // Add bookings list
+            const bookingsList = document.createElement('div');
+            if (realBookings.length > 0) {
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.marginTop = '20px';
+                
+                // Add table header
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr>
+                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Name</th>
+                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Email</th>
+                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Booked On</th>
+                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Status</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+                
+                // Add table body with real booking data
+                const tbody = document.createElement('tbody');
+                tbody.innerHTML = realBookings.map(booking => `
+                    <tr>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${booking.user_name}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${booking.user_email}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">${new Date(booking.received_at).toLocaleDateString()}</td>
+                        <td style="padding: 8px; border-bottom: 1px solid #ddd;">
+                            <span style="color: ${booking.processed ? 'green' : 'orange'}">
+                                ${booking.processed ? 'Processed' : 'Pending'}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+                table.appendChild(tbody);
+                
+                bookingsList.appendChild(table);
+            } else {
+                bookingsList.innerHTML = '<p>No real bookings found for this event yet.</p>';
+            }
+            
+            // Assemble modal
+            content.appendChild(closeButton);
+            content.appendChild(title);
+            content.appendChild(bookingsList);
+            modal.appendChild(content);
+            
+            // Add to document
+            document.body.appendChild(modal);
+        }
+        
+        // Function to cancel an event
+        function cancelEvent(eventId) {
+            if (!confirm(`Are you sure you want to cancel this event? All bookings will be cancelled.`)) return;
+            
+            const event = mockEvents.find(e => e.id === eventId);
+            if (!event) {
+                alert('Event not found');
+                return;
+            }
+            
+            // Update event status
+            event.is_active = false;
+            
+            // Update bookings status
+            if (event.bookings) {
+                event.bookings.forEach(booking => booking.status = 'cancelled');
+            }
+            
+            // Refresh events list
+            loadEvents();
+            
+            alert(`Event "${event.title}" has been cancelled.`);
+        }
+        
+
+        
+        // This function is already defined above
+        
+        // This function is already defined above
+        
+
+        
+        // Initialize the dashboard
+        init();
+    </script>
+</body>
+</html>
