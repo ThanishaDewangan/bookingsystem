@@ -97,12 +97,12 @@
             return response;
         }
 
-        // Mock events data for demonstration
+        // Mock events data
         const mockEvents = [
             {
                 id: 1,
                 title: 'Morning Meditation Session',
-                description: 'Start your day with mindfulness and clarity. This guided meditation session will help you center yourself and prepare for a productive day.',
+                description: 'Start your day with mindfulness and clarity.',
                 event_type: 'session',
                 date_time: new Date(Date.now() + 86400000).toISOString(),
                 duration: 60,
@@ -114,7 +114,7 @@
             {
                 id: 2,
                 title: 'Weekend Yoga Retreat',
-                description: 'Escape the city for a rejuvenating 2-day yoga retreat in nature. All levels welcome.',
+                description: 'Escape the city for a rejuvenating 2-day yoga retreat.',
                 event_type: 'retreat',
                 date_time: new Date(Date.now() + 604800000).toISOString(),
                 duration: 2880,
@@ -126,7 +126,7 @@
             {
                 id: 3,
                 title: 'Life Coaching Workshop',
-                description: 'Discover your potential and set actionable goals in this transformative workshop.',
+                description: 'Discover your potential and set actionable goals.',
                 event_type: 'session',
                 date_time: new Date(Date.now() + 259200000).toISOString(),
                 duration: 120,
@@ -134,37 +134,23 @@
                 price: 50.0,
                 facilitator: 'Emma Rodriguez',
                 available_spots: 10
-            },
-            {
-                id: 4,
-                title: 'Evening Relaxation Session',
-                description: 'Wind down after a long day with this calming session focused on relaxation techniques.',
-                event_type: 'session',
-                date_time: new Date(Date.now() + 172800000).toISOString(),
-                duration: 45,
-                max_participants: 20,
-                price: 20.0,
-                facilitator: 'Dr. Sarah Johnson',
-                available_spots: 20
-            },
-            {
-                id: 5,
-                title: 'Career Transition Coaching',
-                description: 'Navigate career changes with confidence through personalized coaching.',
-                event_type: 'session',
-                date_time: new Date(Date.now() + 432000000).toISOString(),
-                duration: 90,
-                max_participants: 5,
-                price: 75.0,
-                facilitator: 'Emma Rodriguez',
-                available_spots: 5
             }
         ];
         
         async function loadEvents() {
             try {
-                // Use mock data instead of API call to avoid authentication issues
-                const events = mockEvents;
+                // Try to load from API first, fallback to mock data
+                let events = mockEvents;
+                
+                try {
+                    const response = await apiCall('/api/events');
+                    if (response && response.ok) {
+                        events = await response.json();
+                        console.log('Loaded events from API:', events.length);
+                    }
+                } catch (apiError) {
+                    console.log('Using mock events data');
+                }
                 
                 document.getElementById('events-loading').style.display = 'none';
                 document.getElementById('events-grid').style.display = 'grid';
@@ -195,7 +181,7 @@
                 `).join('');
             } catch (error) {
                 console.error('Error loading events:', error);
-                document.getElementById('events-loading').innerHTML = '<div class="error">Failed to load events: ' + error.message + '</div>';
+                document.getElementById('events-loading').innerHTML = '<div class="error">Failed to load events</div>';
             }
         }
 
@@ -204,8 +190,18 @@
         
         async function loadBookings() {
             try {
-                // Use mock data instead of API call to avoid authentication issues
-                const bookings = mockBookings;
+                // Try to load from API first, fallback to mock data
+                let bookings = mockBookings;
+                
+                try {
+                    const response = await apiCall('/api/my-bookings');
+                    if (response && response.ok) {
+                        bookings = await response.json();
+                        console.log('Loaded bookings from API:', bookings.length);
+                    }
+                } catch (apiError) {
+                    console.log('Using mock bookings data');
+                }
                 
                 document.getElementById('bookings-loading').style.display = 'none';
                 document.getElementById('bookings-list').style.display = 'block';
@@ -262,254 +258,94 @@
                 bookingsList.innerHTML = html;
             } catch (error) {
                 console.error('Error loading bookings:', error);
-                document.getElementById('bookings-loading').innerHTML = '<div class="error">Failed to load bookings: ' + error.message + '</div>';
+                document.getElementById('bookings-loading').innerHTML = '<div class="error">Failed to load bookings</div>';
             }
         }
 
         async function bookEvent(eventId) {
             try {
-                // Simulate successful booking
-                const event = mockEvents.find(e => e.id === eventId);
-                if (!event) {
-                    showMessage('Event not found', 'error');
+                // Use real API to create booking
+                const response = await apiCall('/api/bookings', {
+                    method: 'POST',
+                    body: JSON.stringify({ event_id: eventId })
+                });
+                
+                if (!response || !response.ok) {
+                    const errorText = response ? await response.text() : 'Network error';
+                    showMessage('Booking failed: ' + errorText, 'error');
                     return;
                 }
                 
-                // Decrease available spots
-                event.available_spots -= 1;
+                const result = await response.json();
+                showMessage(result.message || 'Booking confirmed!');
                 
-                // Generate booking ID
-                const bookingId = Date.now();
-                
-                // Add to mock bookings
-                mockBookings.push({
-                    id: bookingId,
-                    event: {
-                        id: event.id,
-                        title: event.title,
-                        date_time: event.date_time,
-                        event_type: event.event_type
-                    },
-                    booking_date: new Date().toISOString(),
-                    status: 'confirmed',
-                    is_upcoming: true
-                });
-                
-                // Get real user info and notify CRM
-                const userStr = localStorage.getItem('user');
-                let user = { id: 1, name: 'Guest User', email: 'guest@example.com' };
-                if (userStr) {
-                    try {
-                        user = JSON.parse(userStr);
-                    } catch (e) {
-                        console.error('Error parsing user data:', e);
-                    }
+                // Update local mock data for UI
+                const event = mockEvents.find(e => e.id === eventId);
+                if (event && event.available_spots > 0) {
+                    event.available_spots -= 1;
+                    
+                    mockBookings.push({
+                        id: result.booking_id || Date.now(),
+                        event: {
+                            id: event.id,
+                            title: event.title,
+                            date_time: event.date_time,
+                            event_type: event.event_type
+                        },
+                        booking_date: new Date().toISOString(),
+                        status: 'confirmed',
+                        is_upcoming: true
+                    });
                 }
                 
-                // Send notification to CRM with real user data
-                const payload = {
-                    booking_id: bookingId,
-                    user: {
-                        id: user.id,
-                        name: user.name,
-                        email: user.email
-                    },
-                    event: {
-                        id: event.id,
-                        title: event.title,
-                        date_time: event.date_time
-                    },
-                    facilitator_id: event.id % 3 + 1
-                };
-                
-                console.log('📤 Sending notification to CRM for user:', user.name, 'Event:', event.title);
-                
-                const response = await fetch('http://localhost:5001/notify', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer secure-bearer-token-123',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    console.error('❌ Failed to notify CRM:', await response.text());
-                } else {
-                    console.log('✅ CRM notification sent successfully!');
-                    alert(`Booking confirmed! Facilitator has been notified about your booking for "${event.title}"`);
-                }
-                
-                showMessage('Booking confirmed successfully!');
-                loadEvents(); // Refresh events to update available spots
-                loadBookings(); // Refresh bookings
+                loadEvents();
+                loadBookings();
             } catch (error) {
                 console.error('Error booking event:', error);
                 showMessage('Booking failed: ' + error.message, 'error');
             }
         }
-        
-        async function notifyCRM(bookingId, event) {
-            try {
-                // Get user info from localStorage
-                const userStr = localStorage.getItem('user');
-                let user = { id: 1, name: 'Guest User', email: 'guest@example.com' };
-                
-                if (userStr) {
-                    try {
-                        user = JSON.parse(userStr);
-                    } catch (e) {
-                        console.error('Error parsing user data:', e);
-                    }
-                }
-                
-                // Prepare notification data
-                const payload = {
-                    booking_id: bookingId,
-                    user: {
-                        id: user.id,
-                        name: user.name,
-                        email: user.email
-                    },
-                    event: {
-                        id: event.id,
-                        title: event.title,
-                        date_time: event.date_time
-                    },
-                    facilitator_id: event.id % 3 + 1 // Simple mapping to facilitator IDs 1-3
-                };
-                
-                console.log('Sending notification to CRM:', payload);
-                
-                // Send notification to CRM
-                const response = await fetch('http://localhost:5001/notify', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer secure-bearer-token-123',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) {
-                    console.error('Failed to notify CRM:', await response.text());
-                    throw new Error('Failed to notify CRM');
-                } else {
-                    console.log('✅ CRM notification sent successfully for user:', user.name);
-                    console.log('✅ Event:', event.title);
-                    alert(`Booking confirmed! Notification sent to facilitator for ${event.title}`);
-                }
-                
-                return true;
-            } catch (error) {
-                console.error('Error notifying CRM:', error);
-                return false;
-            }
-        }
+
 
         async function cancelBooking(bookingId) {
             if (!confirm('Are you sure you want to cancel this booking?')) return;
             
             try {
-                // Find booking in mock data
-                const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
-                if (bookingIndex === -1) {
-                    showMessage('Booking not found', 'error');
+                // Use real API to cancel booking
+                const response = await apiCall(`/api/bookings/${bookingId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response || !response.ok) {
+                    const errorText = response ? await response.text() : 'Network error';
+                    showMessage('Cancellation failed: ' + errorText, 'error');
                     return;
                 }
                 
-                const booking = mockBookings[bookingIndex];
+                const result = await response.json();
+                showMessage(result.message || 'Booking cancelled successfully!');
                 
-                // Update booking status
-                booking.status = 'cancelled';
-                
-                // Increase available spots in the event
-                const event = mockEvents.find(e => e.id === booking.event.id);
-                if (event) {
-                    event.available_spots += 1;
+                // Update local mock data for UI
+                const bookingIndex = mockBookings.findIndex(b => b.id === bookingId);
+                if (bookingIndex !== -1) {
+                    const booking = mockBookings[bookingIndex];
+                    booking.status = 'cancelled';
+                    
+                    // Increase available spots in the event
+                    const event = mockEvents.find(e => e.id === booking.event.id);
+                    if (event) {
+                        event.available_spots += 1;
+                    }
                 }
                 
-                // Notify CRM about cancellation
-                await notifyCancellation(booking, event);
-                
-                showMessage('Booking cancelled successfully!');
-                loadBookings(); // Refresh bookings
-                loadEvents(); // Refresh events to update available spots
+                loadBookings();
+                loadEvents();
             } catch (error) {
                 console.error('Error cancelling booking:', error);
                 showMessage('Cancellation failed: ' + error.message, 'error');
             }
         }
-        
-        async function notifyCancellation(booking, event) {
-            try {
-                // Get user info from localStorage
-                const userStr = localStorage.getItem('user');
-                let user = { id: 1, name: 'Guest User', email: 'guest@example.com' };
-                
-                if (userStr) {
-                    try {
-                        user = JSON.parse(userStr);
-                    } catch (e) {
-                        console.error('Error parsing user data:', e);
-                    }
-                }
-                
-                // Prepare notification data
-                const payload = {
-                    booking_id: booking.id,
-                    user: {
-                        id: user.id,
-                        name: user.name,
-                        email: user.email
-                    },
-                    event: {
-                        id: event.id,
-                        title: event.title,
-                        date_time: event.date_time
-                    },
-                    facilitator_id: event.id % 3 + 1,
-                    action: 'cancellation'
-                };
-                
-                console.log('Sending cancellation notification to CRM:', payload);
-                
-                // Method 1: Send notification via API
-                try {
-                    const response = await fetch('http://localhost:5001/notify', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer secure-bearer-token-123',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
-                    });
-                    
-                    if (!response.ok) {
-                        console.error('Failed to notify CRM about cancellation:', await response.text());
-                    } else {
-                        console.log('CRM cancellation notification sent successfully');
-                    }
-                } catch (apiError) {
-                    console.error('Error sending cancellation notification:', apiError);
-                }
-                
-                // Method 2: Store in localStorage
-                try {
-                    const existingNotifications = JSON.parse(localStorage.getItem('crmNotifications') || '[]');
-                    existingNotifications.push(payload);
-                    localStorage.setItem('crmNotifications', JSON.stringify(existingNotifications));
-                    console.log('Cancellation notification stored in localStorage');
-                } catch (storageError) {
-                    console.error('Error storing cancellation in localStorage:', storageError);
-                }
-                
-                return true;
-            } catch (error) {
-                console.error('Error notifying CRM about cancellation:', error);
-                return false;
-            }
-        }
+
 
         function logout() {
             localStorage.removeItem('access_token');

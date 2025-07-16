@@ -127,7 +127,7 @@ def register():
     db.session.add(user)
     db.session.commit()
     
-    access_token = create_access_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
     return jsonify({'access_token': access_token, 'user': {'id': user.id, 'name': user.name, 'email': user.email}})
 
 @app.route('/api/login', methods=['POST'])
@@ -136,7 +136,7 @@ def login():
     user = User.query.filter_by(email=data['email']).first()
     
     if user and check_password_hash(user.password_hash, data['password']):
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         return jsonify({'access_token': access_token, 'user': {'id': user.id, 'name': user.name, 'email': user.email}})
     
     return jsonify({'message': 'Invalid credentials'}), 401
@@ -165,7 +165,7 @@ def google_callback():
             db.session.commit()
         
         # Create JWT token
-        access_token = create_access_token(identity=user.id)
+        access_token = create_access_token(identity=str(user.id))
         
         # Create a response page that stores token in localStorage
         html = f'''
@@ -236,7 +236,7 @@ def get_event(event_id):
 @app.route('/api/bookings', methods=['POST'])
 @jwt_required()
 def create_booking():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     event_id = data['event_id']
     
@@ -273,7 +273,7 @@ def create_booking():
 @app.route('/api/my-bookings', methods=['GET'])
 @jwt_required()
 def get_user_bookings():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     bookings = Booking.query.filter_by(user_id=user_id).all()
     
     return jsonify([{
@@ -292,7 +292,7 @@ def get_user_bookings():
 @app.route('/api/bookings/<int:booking_id>', methods=['DELETE'])
 @jwt_required()
 def cancel_booking(booking_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     booking = Booking.query.filter_by(id=booking_id, user_id=user_id).first_or_404()
     
     booking.status = 'cancelled'

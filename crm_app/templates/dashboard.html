@@ -346,7 +346,69 @@
         
         // This function is already defined above
         
-
+        // Function to get real bookings for an event
+        function Booking failed: Failed to fetchBookingsForEvent(eventTitle) {
+            return window.mockNotifications ? window.mockNotifications.filter(n => 
+                n.event_title === eventTitle
+            ) : [];
+        }
+        
+        // Update viewBookings to use real data
+        const originalViewBookings = viewBookings;
+        viewBookings = function(eventId) {
+            const event = mockEvents.find(e => e.id === eventId);
+            if (!event) {
+                alert('Event not found');
+                return;
+            }
+            
+            const realBookings = getRealBookingsForEvent(event.title);
+            
+            // Create simple alert with booking info
+            if (realBookings.length > 0) {
+                let bookingInfo = `Real Bookings for ${event.title}:\n\n`;
+                realBookings.forEach(booking => {
+                    bookingInfo += `• ${booking.user_name} (${booking.user_email})\n`;
+                    bookingInfo += `  Booked: ${new Date(booking.received_at).toLocaleDateString()}\n`;
+                    bookingInfo += `  Status: ${booking.processed ? 'Processed' : 'Pending'}\n\n`;
+                });
+                alert(bookingInfo);
+            } else {
+                alert(`No real bookings found for ${event.title} yet.`);
+            }
+        };
+        
+        // Function to get real bookings for an event
+        function getRealBookingsForEvent(eventTitle) {
+            return window.mockNotifications ? window.mockNotifications.filter(n => 
+                n.event_title === eventTitle
+            ) : [];
+        }
+        
+        // Update viewBookings to use real data
+        const originalViewBookings = viewBookings;
+        viewBookings = function(eventId) {
+            const event = mockEvents.find(e => e.id === eventId);
+            if (!event) {
+                alert('Event not found');
+                return;
+            }
+            
+            const realBookings = getRealBookingsForEvent(event.title);
+            
+            // Create simple alert with booking info
+            if (realBookings.length > 0) {
+                let bookingInfo = `Real Bookings for ${event.title}:\n\n`;
+                realBookings.forEach(booking => {
+                    bookingInfo += `• ${booking.user_name} (${booking.user_email})\n`;
+                    bookingInfo += `  Booked: ${new Date(booking.received_at).toLocaleDateString()}\n`;
+                    bookingInfo += `  Status: ${booking.processed ? 'Processed' : 'Pending'}\n\n`;
+                });
+                alert(bookingInfo);
+            } else {
+                alert(`No real bookings found for ${event.title} yet.`);
+            }
+        };
         
         // Initialize the dashboard
         init();
